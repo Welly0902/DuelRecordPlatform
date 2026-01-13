@@ -85,6 +85,7 @@ export default function SeasonMatchesPage() {
   }
 
   const [statsFilters, setStatsFilters] = useState<StatsFilters>({})
+  const [showMyDeckWlCounts, setShowMyDeckWlCounts] = useState(true)
 
   useEffect(() => {
     setStatsFilters({})
@@ -457,15 +458,24 @@ export default function SeasonMatchesPage() {
             <div className={`text-xs uppercase tracking-wider font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>我方常用牌組</div>
             <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>點擊列以篩選</div>
           </div>
-          {statsFilters.myDeckMain && (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setStatsFilters(f => ({ ...f, myDeckMain: undefined }))}
-              className={`text-sm font-semibold transition-colors ${isDark ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-800'}`}
+              onClick={() => setShowMyDeckWlCounts(v => !v)}
+              className={`text-sm font-semibold transition-colors ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
             >
-              重置
+              {showMyDeckWlCounts ? '隱藏勝敗' : '顯示勝敗'}
             </button>
-          )}
+            {statsFilters.myDeckMain && (
+              <button
+                type="button"
+                onClick={() => setStatsFilters(f => ({ ...f, myDeckMain: undefined }))}
+                className={`text-sm font-semibold transition-colors ${isDark ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-800'}`}
+              >
+                重置
+              </button>
+            )}
+          </div>
         </div>
         <div className="max-h-64 overflow-y-auto">
           <table className="w-full">
@@ -473,12 +483,16 @@ export default function SeasonMatchesPage() {
               <tr>
                 <th className={`px-4 py-2 text-left text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>牌組</th>
                 <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>場數</th>
+                <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>先手率</th>
                 <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>勝率</th>
+                <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>先攻勝率</th>
+                <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>後攻勝率</th>
               </tr>
             </thead>
             <tbody>
               {stats.myDecks.slice(0, 20).map((row, idx) => {
                 const selected = statsFilters.myDeckMain === row.name
+                const pct = (v: number) => `${v.toFixed(1)}%`
                 return (
                   <tr
                     key={row.name}
@@ -491,8 +505,30 @@ export default function SeasonMatchesPage() {
                   >
                     <td className={`px-4 py-2 text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{row.name}</td>
                     <td className={`px-4 py-2 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{row.games}</td>
-                    <td className={`px-4 py-2 text-sm text-right font-bold ${row.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                      {row.winRate.toFixed(1)}%
+                    <td className={`px-4 py-2 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{pct(row.firstRate)}</td>
+                    <td className="px-4 py-2 text-sm text-right">
+                      <span className={`font-bold ${row.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{row.winRate.toFixed(1)}%</span>
+                      {showMyDeckWlCounts && (
+                        <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          ({row.wins}W-{row.losses}L)
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-right">
+                      <span className={`${row.firstWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{pct(row.firstWinRate)}</span>
+                      {showMyDeckWlCounts && (
+                        <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          ({row.firstWins}W-{row.firstLosses}L)
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-right">
+                      <span className={`${row.secondWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{pct(row.secondWinRate)}</span>
+                      {showMyDeckWlCounts && (
+                        <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          ({row.secondWins}W-{row.secondLosses}L)
+                        </span>
+                      )}
                     </td>
                   </tr>
                 )

@@ -6,6 +6,16 @@ export interface DeckStatRow {
   wins: number
   losses: number
   winRate: number // 0-100
+
+  first: number
+  second: number
+  firstRate: number // 0-100
+  firstWins: number
+  firstLosses: number
+  secondWins: number
+  secondLosses: number
+  firstWinRate: number // 0-100
+  secondWinRate: number // 0-100
 }
 
 export interface DailyStatRow {
@@ -66,17 +76,42 @@ function dateKeyFromMatch(match: Match): string {
   return match.date.includes('T') ? match.date.split('T')[0] : match.date
 }
 
-function toDeckStats(rows: Array<{ name: string; wins: number; losses: number }>): DeckStatRow[] {
+function toDeckStats(
+  rows: Array<{
+    name: string
+    wins: number
+    losses: number
+    first: number
+    second: number
+    firstWins: number
+    firstLosses: number
+    secondWins: number
+    secondLosses: number
+  }>,
+): DeckStatRow[] {
   return rows
     .map(r => {
       const games = r.wins + r.losses
       const winRate = games > 0 ? clamp01(r.wins / games) * 100 : 0
+      const firstRate = games > 0 ? clamp01(r.first / games) * 100 : 0
+      const firstWinRate = r.first > 0 ? clamp01(r.firstWins / r.first) * 100 : 0
+      const secondWinRate = r.second > 0 ? clamp01(r.secondWins / r.second) * 100 : 0
       return {
         name: r.name,
         games,
         wins: r.wins,
         losses: r.losses,
         winRate,
+
+        first: r.first,
+        second: r.second,
+        firstRate,
+        firstWins: r.firstWins,
+        firstLosses: r.firstLosses,
+        secondWins: r.secondWins,
+        secondLosses: r.secondLosses,
+        firstWinRate,
+        secondWinRate,
       }
     })
     .sort((a, b) => b.games - a.games)
@@ -98,8 +133,32 @@ export function buildSeasonStats(matches: Match[], range?: { start: string; end:
   const firstWinRate = firstCount > 0 ? (firstWins / firstCount) * 100 : 0
   const secondWinRate = secondCount > 0 ? (secondWins / secondCount) * 100 : 0
 
-  const oppMap = new Map<string, { wins: number; losses: number }>()
-  const myMap = new Map<string, { wins: number; losses: number }>()
+  const oppMap = new Map<
+    string,
+    {
+      wins: number
+      losses: number
+      first: number
+      second: number
+      firstWins: number
+      firstLosses: number
+      secondWins: number
+      secondLosses: number
+    }
+  >()
+  const myMap = new Map<
+    string,
+    {
+      wins: number
+      losses: number
+      first: number
+      second: number
+      firstWins: number
+      firstLosses: number
+      secondWins: number
+      secondLosses: number
+    }
+  >()
 
   for (const m of matches) {
     const opp = m.oppDeck?.main || '未知'
@@ -107,23 +166,81 @@ export function buildSeasonStats(matches: Match[], range?: { start: string; end:
 
     const isWin = m.result === 'W'
 
-    const oppEntry = oppMap.get(opp) ?? { wins: 0, losses: 0 }
+    const isFirst = m.playOrder === '先攻'
+
+    const oppEntry = oppMap.get(opp) ?? {
+      wins: 0,
+      losses: 0,
+      first: 0,
+      second: 0,
+      firstWins: 0,
+      firstLosses: 0,
+      secondWins: 0,
+      secondLosses: 0,
+    }
     if (isWin) oppEntry.wins += 1
     else oppEntry.losses += 1
+    if (isFirst) {
+      oppEntry.first += 1
+      if (isWin) oppEntry.firstWins += 1
+      else oppEntry.firstLosses += 1
+    } else {
+      oppEntry.second += 1
+      if (isWin) oppEntry.secondWins += 1
+      else oppEntry.secondLosses += 1
+    }
     oppMap.set(opp, oppEntry)
 
-    const myEntry = myMap.get(mine) ?? { wins: 0, losses: 0 }
+    const myEntry = myMap.get(mine) ?? {
+      wins: 0,
+      losses: 0,
+      first: 0,
+      second: 0,
+      firstWins: 0,
+      firstLosses: 0,
+      secondWins: 0,
+      secondLosses: 0,
+    }
     if (isWin) myEntry.wins += 1
     else myEntry.losses += 1
+    if (isFirst) {
+      myEntry.first += 1
+      if (isWin) myEntry.firstWins += 1
+      else myEntry.firstLosses += 1
+    } else {
+      myEntry.second += 1
+      if (isWin) myEntry.secondWins += 1
+      else myEntry.secondLosses += 1
+    }
     myMap.set(mine, myEntry)
   }
 
   const oppDecks = toDeckStats(
-    Array.from(oppMap.entries()).map(([name, v]) => ({ name, wins: v.wins, losses: v.losses })),
+    Array.from(oppMap.entries()).map(([name, v]) => ({
+      name,
+      wins: v.wins,
+      losses: v.losses,
+      first: v.first,
+      second: v.second,
+      firstWins: v.firstWins,
+      firstLosses: v.firstLosses,
+      secondWins: v.secondWins,
+      secondLosses: v.secondLosses,
+    })),
   )
 
   const myDecks = toDeckStats(
-    Array.from(myMap.entries()).map(([name, v]) => ({ name, wins: v.wins, losses: v.losses })),
+    Array.from(myMap.entries()).map(([name, v]) => ({
+      name,
+      wins: v.wins,
+      losses: v.losses,
+      first: v.first,
+      second: v.second,
+      firstWins: v.firstWins,
+      firstLosses: v.firstLosses,
+      secondWins: v.secondWins,
+      secondLosses: v.secondLosses,
+    })),
   )
 
   const dailyMap = new Map<
