@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { matchesService } from '../services/matchesService'
 import { useTheme } from '../contexts/ThemeContext'
+import AddMatchForm from '../components/AddMatchForm'
 
 // 根據階級返回對應顏色 (深色/淺色模式)
 function getRankColor(rank: string, isDark: boolean): string {
   if (rank.startsWith('銅')) {
     return isDark 
-      ? 'bg-amber-800/30 text-amber-500' 
-      : 'bg-amber-100 text-amber-800 border border-amber-300'
+      ? 'bg-amber-700/30 text-amber-500' 
+      : 'bg-amber-700/20 text-amber-800 border border-amber-600'
   }
   if (rank.startsWith('銀')) {
     return isDark 
@@ -42,15 +44,45 @@ function getRankColor(rank: string, isDark: boolean): string {
 export default function MatchesPage() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['matches'],
     queryFn: () => matchesService.getMatches(),
   })
 
+  // 刪除 mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => matchesService.deleteMatch(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['matches'] })
+      setDeleteConfirmId(null)
+    },
+  })
+
   const wins = data?.matches.filter(m => m.result === 'W').length || 0
   const losses = data?.matches.filter(m => m.result === 'L').length || 0
   const total = data?.total || 0
+
+  // 顯示新增表單
+  if (showAddForm) {
+    // 取得最新一筆記錄作為預設值
+    const latestMatch = data?.matches[0]
+    return (
+      <AddMatchForm
+        onCancel={() => setShowAddForm(false)}
+        onSuccess={() => setShowAddForm(false)}
+        defaultValues={latestMatch ? {
+          date: latestMatch.date.split('T')[0], // 確保格式為 YYYY-MM-DD
+          rank: latestMatch.rank,
+          myDeckMain: latestMatch.myDeck.main,
+          myDeckSub: latestMatch.myDeck.sub || '無',
+        } : undefined}
+      />
+    )
+  }
 
   return (
     <div>
@@ -62,7 +94,10 @@ export default function MatchesPage() {
             Season 48 · Master Duel
           </p>
         </div>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+        <button 
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+        >
           + 新增對局
         </button>
       </div>
@@ -143,10 +178,16 @@ export default function MatchesPage() {
                   </td>
                   {/* 我方牌組 */}
                   <td className="px-4 py-3">
-                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{match.myDeck.main}</div>
-                    {match.myDeck.sub && match.myDeck.sub !== '無' && (
-                      <div className="text-xs text-gray-500">{match.myDeck.sub}</div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 text-sm font-bold rounded bg-blue-700 text-white">
+                        {match.myDeck.main}
+                      </span>
+                      {match.myDeck.sub && match.myDeck.sub !== '無' && (
+                        <span className="px-2.5 py-1 text-sm font-bold rounded bg-amber-700 text-white">
+                          {match.myDeck.sub}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {/* 先後攻 */}
                   <td className="px-4 py-3 text-center">
@@ -170,10 +211,16 @@ export default function MatchesPage() {
                   </td>
                   {/* 對手牌組 */}
                   <td className="px-4 py-3">
-                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{match.oppDeck.main}</div>
-                    {match.oppDeck.sub && match.oppDeck.sub !== '無' && (
-                      <div className="text-xs text-gray-500">{match.oppDeck.sub}</div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 text-sm font-bold rounded bg-blue-700 text-white">
+                        {match.oppDeck.main}
+                      </span>
+                      {match.oppDeck.sub && match.oppDeck.sub !== '無' && (
+                        <span className="px-2.5 py-1 text-sm font-bold rounded bg-amber-700 text-white">
+                          {match.oppDeck.sub}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {/* 備註 */}
                   <td className="px-4 py-3">
@@ -193,11 +240,14 @@ export default function MatchesPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
-                      <button className={`p-1.5 rounded transition-colors ${
-                        isDark
-                          ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
-                          : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                      }`}>
+                      <button 
+                        onClick={() => setDeleteConfirmId(match.id)}
+                        className={`p-1.5 rounded transition-colors ${
+                          isDark
+                            ? 'text-gray-500 hover:text-red-400 hover:bg-red-500/10'
+                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -216,9 +266,51 @@ export default function MatchesPage() {
         <div className={`rounded-xl p-12 text-center ${isDark ? 'bg-[#1e1e26]' : 'bg-gray-50'}`}>
           <div className="text-4xl mb-4">🎮</div>
           <p className="text-gray-500 mb-4">尚無對局記錄</p>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors">
+          <button 
+            onClick={() => setShowAddForm(true)}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+          >
             新增第一場對局
           </button>
+        </div>
+      )}
+
+      {/* 刪除確認對話框 */}
+      {deleteConfirmId && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setDeleteConfirmId(null)}
+        >
+          <div 
+            className={`w-full max-w-sm rounded-2xl p-6 ${
+              isDark ? 'bg-[#1e1e26] border border-white/10' : 'bg-white border border-gray-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold mb-2">確認刪除</h3>
+            <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              確定要刪除這筆對局記錄嗎？此操作無法復原。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                  isDark 
+                    ? 'bg-white/10 hover:bg-white/20' 
+                    : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+              >
+                取消
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deleteConfirmId)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? '刪除中...' : '確認刪除'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
