@@ -67,15 +67,9 @@ export default function AppShell() {
           </button>
         </header>
 
-        {/* ===== 中間 Container ===== */}
-        <main className="flex-1 p-6">
-          <div className={`max-w-[1000px] mx-auto rounded-2xl p-6 min-h-[calc(100vh-120px)] ${
-            theme === 'dark'
-              ? 'bg-[#16161c] border border-[#2a2a35]'
-              : 'bg-white border border-gray-200 shadow-sm'
-          }`}>
-            <Outlet />
-          </div>
+        {/* ===== 主內容區 ===== */}
+        <main className="flex-1 p-6 max-w-[1800px] mx-auto w-full">
+          <Outlet />
         </main>
       </div>
     </div>
