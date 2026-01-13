@@ -144,3 +144,36 @@ DuelRecordPlatform/
 ---
 
 **開發狀態**：Phase 0 ✅ 完成
+
+
+``` Structure
+DuelRecordPlatform/
+├── apps/
+│   ├── api/                    # Go 後端
+│   │   ├── cmd/seed/main.go    # Seed 程式
+│   │   ├── handlers/matches.go # API handlers
+│   │   ├── migrations/         # DB migrations
+│   │   ├── models/match.go     # 資料模型
+│   │   ├── main.go             # 入口
+│   │   ├── seed.sql            # Seed 資料
+│   │   ├── go.mod / go.sum
+│   │   └── .env
+│   │
+│   └── web/                    # React 前端
+│       ├── src/
+│       │   ├── components/AppShell.tsx
+│       │   ├── contexts/ThemeContext.tsx
+│       │   ├── pages/MatchesPage.tsx
+│       │   ├── services/api.ts, matchesService.ts
+│       │   ├── types/match.ts
+│       │   ├── index.css
+│       │   └── main.tsx
+│       ├── tailwind.config.cjs
+│       ├── postcss.config.cjs
+│       ├── vite.config.ts
+│       └── package.json
+│
+├── docs/spec.md
+├── .gitignore
+└── README.md
+```
