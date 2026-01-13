@@ -118,14 +118,14 @@ export default function MatchesPage() {
                 <th className={`px-4 py-3 text-center text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>結果</th>
                 <th className={`px-4 py-3 text-left text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>對手牌組</th>
                 <th className={`px-4 py-3 text-left text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>備註</th>
-                <th className={`px-4 py-3 text-center text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>操作</th>
+                <th className="px-4 py-3 w-20"></th>
               </tr>
             </thead>
             <tbody>
               {data.matches.map((match, index) => (
                 <tr 
                   key={match.id} 
-                  className={`transition-colors ${
+                  className={`group transition-colors ${
                     isDark 
                       ? `border-b border-white/5 hover:bg-white/5 ${index % 2 === 1 ? 'bg-white/[0.02]' : ''}`
                       : `border-b border-gray-100 hover:bg-gray-50 ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`
@@ -143,7 +143,7 @@ export default function MatchesPage() {
                   </td>
                   {/* 我方牌組 */}
                   <td className="px-4 py-3">
-                    <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{match.myDeck.main}</div>
+                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{match.myDeck.main}</div>
                     {match.myDeck.sub && match.myDeck.sub !== '無' && (
                       <div className="text-xs text-gray-500">{match.myDeck.sub}</div>
                     )}
@@ -170,7 +170,7 @@ export default function MatchesPage() {
                   </td>
                   {/* 對手牌組 */}
                   <td className="px-4 py-3">
-                    <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{match.oppDeck.main}</div>
+                    <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{match.oppDeck.main}</div>
                     {match.oppDeck.sub && match.oppDeck.sub !== '無' && (
                       <div className="text-xs text-gray-500">{match.oppDeck.sub}</div>
                     )}
@@ -181,9 +181,9 @@ export default function MatchesPage() {
                       {match.note || '-'}
                     </span>
                   </td>
-                  {/* 操作 */}
+                  {/* 操作 - hover 時才顯示 */}
                   <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className={`p-1.5 rounded transition-colors ${
                         isDark 
                           ? 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'
