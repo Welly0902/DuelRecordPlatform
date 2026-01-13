@@ -58,6 +58,12 @@ func main() {
 	app.Patch("/matches/:id", matchesHandler.UpdateMatch)
 	app.Delete("/matches/:id", matchesHandler.DeleteMatch)
 
+	// Deck Templates API
+	app.Get("/deck-templates", func(c *fiber.Ctx) error { return handlers.GetDeckTemplates(c, db) })
+	app.Post("/deck-templates", func(c *fiber.Ctx) error { return handlers.CreateDeckTemplate(c, db) })
+	app.Patch("/deck-templates/:id", func(c *fiber.Ctx) error { return handlers.UpdateDeckTemplate(c, db) })
+	app.Delete("/deck-templates/:id", func(c *fiber.Ctx) error { return handlers.DeleteDeckTemplate(c, db) })
+
 	// 啟動伺服器
 	port := getEnv("PORT", "8080")
 	log.Printf("🚀 Server starting on port %s", port)

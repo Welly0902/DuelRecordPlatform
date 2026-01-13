@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { matchesService } from '../services/matchesService'
+import { decksService, THEME_COLORS, type DeckTheme } from '../services/decksService'
 import { useTheme } from '../contexts/ThemeContext'
 import MatchForm from '../components/MatchForm'
 import type { Match } from '../types/match'
@@ -58,6 +59,29 @@ export default function MatchesPage() {
     queryKey: ['matches'],
     queryFn: () => matchesService.getMatches(),
   })
+
+  // 取得牌組模板資料
+  const { data: deckTemplatesData } = useQuery({
+    queryKey: ['deck-templates'],
+    queryFn: () => decksService.getTemplates(),
+  })
+
+  // 建立牌組名稱 -> 主題顏色的映射
+  const deckColorMap = useMemo(() => {
+    const map: Record<string, { bg: string; text: string }> = {}
+    if (deckTemplatesData?.templates) {
+      for (const template of deckTemplatesData.templates) {
+        const colors = THEME_COLORS[template.theme as DeckTheme] || THEME_COLORS['無']
+        map[template.name] = colors
+      }
+    }
+    return map
+  }, [deckTemplatesData])
+
+  // 取得牌組顏色
+  const getDeckColor = (deckName: string) => {
+    return deckColorMap[deckName] || THEME_COLORS['無']
+  }
 
   // 刪除 mutation
   const deleteMutation = useMutation({
@@ -343,11 +367,11 @@ export default function MatchesPage() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <span className="px-2 py-0.5 text-xs font-bold rounded bg-blue-700 text-white whitespace-nowrap">
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded whitespace-nowrap ${getDeckColor(match.myDeck.main).bg} ${getDeckColor(match.myDeck.main).text}`}>
                           {match.myDeck.main}
                         </span>
                         {match.myDeck.sub && match.myDeck.sub !== '無' && (
-                          <span className="px-2 py-0.5 text-xs font-bold rounded bg-amber-700 text-white whitespace-nowrap">
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded whitespace-nowrap ${getDeckColor(match.myDeck.sub).bg} ${getDeckColor(match.myDeck.sub).text}`}>
                             {match.myDeck.sub}
                           </span>
                         )}
@@ -373,11 +397,11 @@ export default function MatchesPage() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <span className="px-2 py-0.5 text-xs font-bold rounded bg-blue-700 text-white whitespace-nowrap">
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded whitespace-nowrap ${getDeckColor(match.oppDeck.main).bg} ${getDeckColor(match.oppDeck.main).text}`}>
                           {match.oppDeck.main}
                         </span>
                         {match.oppDeck.sub && match.oppDeck.sub !== '無' && (
-                          <span className="px-2 py-0.5 text-xs font-bold rounded bg-amber-700 text-white whitespace-nowrap">
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded whitespace-nowrap ${getDeckColor(match.oppDeck.sub).bg} ${getDeckColor(match.oppDeck.sub).text}`}>
                             {match.oppDeck.sub}
                           </span>
                         )}

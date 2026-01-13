@@ -1,8 +1,30 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 
 export default function AppShell() {
   const { theme, toggleTheme } = useTheme()
+  const location = useLocation()
+
+  const navItems = [
+    { 
+      path: '/matches', 
+      label: '對局記錄',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      )
+    },
+    { 
+      path: '/decks', 
+      label: '牌組管理',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      )
+    },
+  ]
 
   return (
     <div className={`min-h-screen flex ${
@@ -21,16 +43,28 @@ export default function AppShell() {
           D
         </div>
 
-        {/* Nav Icon */}
-        <button className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-          theme === 'dark'
-            ? 'bg-white/10 hover:bg-white/20'
-            : 'bg-gray-100 hover:bg-gray-200'
-        }`}>
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+        {/* Nav Icons */}
+        <nav className="flex flex-col gap-2">
+          {navItems.map((item) => {
+            const isActive = location.pathname.startsWith(item.path)
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                  isActive
+                    ? 'bg-indigo-600 text-white'
+                    : theme === 'dark'
+                      ? 'text-gray-400 hover:bg-white/10 hover:text-white'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+                title={item.label}
+              >
+                {item.icon}
+              </NavLink>
+            )
+          })}
+        </nav>
       </aside>
 
       {/* ===== 主內容區 ===== */}

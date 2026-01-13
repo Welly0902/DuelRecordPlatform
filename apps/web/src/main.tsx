@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import './index.css'
 import AppShell from './components/AppShell'
 import MatchesPage from './pages/MatchesPage'
+import DecksPage from './pages/DecksPage'
 
 // 建立 QueryClient 實例
 const queryClient = new QueryClient({
@@ -28,6 +29,8 @@ createRoot(document.getElementById('root')!).render(
               <Route index element={<Navigate to="/matches" replace />} />
               {/* 對局記錄頁面 */}
               <Route path="matches" element={<MatchesPage />} />
+              {/* 牌組管理頁面 */}
+              <Route path="decks" element={<DecksPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

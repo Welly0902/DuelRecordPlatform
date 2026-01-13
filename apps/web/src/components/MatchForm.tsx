@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { matchesService } from '../services/matchesService'
+import { decksService } from '../services/decksService'
 import { useTheme } from '../contexts/ThemeContext'
 import type { Match } from '../types/match'
 
@@ -22,14 +23,6 @@ interface MatchFormProps {
 const RANK_TIERS = ['銅', '銀', '金', '白金', '鑽石', '大師'] as const
 const RANK_LEVELS = ['V', 'IV', 'III', 'II', 'I'] as const
 
-// 預設牌組選項（之後可以從 API 取得）
-const DEFAULT_DECKS = [
-  '雷熱', '閃刀姬', '蛇眼', '粛聲', 'R-ACE', '烙印', '天盃龍', 'YO', 
-  '神碑', '幻奏', '龍輝巧', '炎王', '深淵', 'Unknown'
-]
-
-const DEFAULT_SUBS = ['無', '弓劍', '原罪', '深淵', '罪寶']
-
 // 從階級字串解析 tier 和 level
 function parseRank(rank: string): { tier: string; level: string } {
   for (const tier of RANK_TIERS) {
@@ -48,6 +41,17 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
   const isDark = theme === 'dark'
   const queryClient = useQueryClient()
   const isEditMode = !!editMatch
+
+  // 從 API 取得牌組選項
+  const { data: deckTemplatesData } = useQuery({
+    queryKey: ['deck-templates'],
+    queryFn: () => decksService.getTemplates(),
+  })
+
+  // 所有牌組選項（不分主副軸）
+  const allDecks = useMemo(() => {
+    return deckTemplatesData?.templates.map(t => t.name) || []
+  }, [deckTemplatesData])
 
   // 決定初始值來源：編輯模式用 editMatch，新增模式用 defaultValues
   const initialData = isEditMode ? {
@@ -95,14 +99,14 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
 
   // 篩選牌組選項
   const filteredMyDecks = useMemo(() => {
-    if (!myDeckSearch) return DEFAULT_DECKS
-    return DEFAULT_DECKS.filter(d => d.toLowerCase().includes(myDeckSearch.toLowerCase()))
-  }, [myDeckSearch])
+    if (!myDeckSearch) return allDecks
+    return allDecks.filter(d => d.toLowerCase().includes(myDeckSearch.toLowerCase()))
+  }, [myDeckSearch, allDecks])
 
   const filteredOppDecks = useMemo(() => {
-    if (!oppDeckSearch) return DEFAULT_DECKS
-    return DEFAULT_DECKS.filter(d => d.toLowerCase().includes(oppDeckSearch.toLowerCase()))
-  }, [oppDeckSearch])
+    if (!oppDeckSearch) return allDecks
+    return allDecks.filter(d => d.toLowerCase().includes(oppDeckSearch.toLowerCase()))
+  }, [oppDeckSearch, allDecks])
 
   // 組合階級字串
   const rank = `${rankTier}${rankLevel}`
@@ -289,8 +293,8 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
               onChange={(e) => setMyDeckSub(e.target.value)}
               className={inputClass}
             >
-              {DEFAULT_SUBS.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
+              {allDecks.map(deck => (
+                <option key={deck} value={deck}>{deck}</option>
               ))}
             </select>
           </div>
@@ -343,8 +347,8 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
               onChange={(e) => setOppDeckSub(e.target.value)}
               className={inputClass}
             >
-              {DEFAULT_SUBS.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
+              {allDecks.map(deck => (
+                <option key={deck} value={deck}>{deck}</option>
               ))}
             </select>
           </div>
