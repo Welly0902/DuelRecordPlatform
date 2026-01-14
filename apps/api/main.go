@@ -151,17 +151,58 @@ func applyBaseMigrations(db *sql.DB) error {
 		"003_add_match_mode.sql",
 	}
 
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
 	for _, f := range migrationFiles {
 		contents, err := readMigrationFile(f)
 		if err != nil {
 			return err
 		}
-		if _, err := db.Exec(contents); err != nil {
+		upSQL := extractGooseUpSQL(contents)
+		if strings.TrimSpace(upSQL) == "" {
+			continue
+		}
+		if _, err := tx.Exec(upSQL); err != nil {
 			return fmt.Errorf("exec %s: %w", f, err)
 		}
 	}
 
-	return nil
+	return tx.Commit()
+}
+
+func extractGooseUpSQL(fileContents string) string {
+	// If this is a Goose migration file, execute ONLY the Up section.
+	// Running the whole file would also execute Down statements, which can drop tables.
+	if !strings.Contains(fileContents, "+goose") {
+		return fileContents
+	}
+
+	lines := strings.Split(fileContents, "\n")
+	inUp := false
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "-- +goose Up") {
+			inUp = true
+			continue
+		}
+		if strings.HasPrefix(trimmed, "-- +goose Down") {
+			break
+		}
+		if !inUp {
+			continue
+		}
+		// Skip Goose directives; keep everything else (including SQL and comments).
+		if strings.HasPrefix(trimmed, "-- +goose") {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
 }
 
 func readMigrationFile(filename string) (string, error) {
