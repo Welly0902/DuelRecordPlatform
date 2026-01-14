@@ -4,6 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 dist/
 .DS_Store
 
@@ -35,6 +36,14 @@ vendor/
 *.sqlite
 *.sqlite3
 
+# Local API data (do not commit personal records)
+import.csv
+apps/api/import.csv
+apps/api/data/
+*.backup
+apps/api/*.backup
+apps/api/duellog.db.backup
+
 # Docker
 docker-compose.override.yml
 
@@ -45,3 +54,8 @@ Thumbs.db
 # Build artifacts
 apps/web/dist/
 apps/api/tmp/
+
+# Frontend caches / build metadata
+apps/web/.vite/
+coverage/
+*.tsbuildinfo
