@@ -83,7 +83,7 @@ func main() {
 		}
 
 		// 解析欄位 (根據你的格式)
-		// Rank, Account, 本家(我方), 小軸(我方), 勝負, 先後攻, 本家(敵方), 小軸(敵方), 備註, Date, Season
+		// Rank, Account, 本家(我方), 小軸(我方), 勝負, 先後攻, 本家(敵方), 小軸(敵方), 備註, Date, Season, (可選) Mode
 		rankRaw := strings.TrimSpace(row[0])
 		// account := row[1] // 不使用
 		myMain := strings.TrimSpace(row[2])
@@ -96,10 +96,37 @@ func main() {
 		dateRaw := strings.TrimSpace(row[9])
 		seasonCode := strings.TrimSpace(row[10]) // 直接使用 CSV 中的 Season 欄位
 
+		mode := "Ranked"
+		if len(row) >= 12 {
+			modeRaw := strings.TrimSpace(row[11])
+			switch strings.ToUpper(modeRaw) {
+			case "RANKED", "LADDER":
+				mode = "Ranked"
+			case "RATING":
+				mode = "Rating"
+			case "DC", "DUELIST CUP", "DUELISTCUP":
+				mode = "DC"
+			}
+		} else {
+			// Backward-compatible: allow Rank column to be "Rating"/"DC".
+			switch strings.ToUpper(rankRaw) {
+			case "RATING":
+				mode = "Rating"
+				rankRaw = ""
+			case "DC", "DUELIST CUP", "DUELISTCUP":
+				mode = "DC"
+				rankRaw = ""
+			}
+		}
+
 		// 轉換階級格式
 		rank, ok := rankMapping[rankRaw]
 		if !ok {
 			rank = rankRaw // 如果沒有映射，使用原始值
+		}
+		if mode != "Ranked" {
+			// rank is still required by schema; use placeholder.
+			rank = "—"
 		}
 
 		// 轉換勝負
@@ -175,12 +202,12 @@ func main() {
 		matchID := uuid.New().String()
 		_, err = db.Exec(`
 			INSERT INTO matches (
-				id, user_id, game_id, season_id, date, rank,
+				id, user_id, game_id, season_id, date, mode, rank,
 				my_deck_id, opp_deck_id, play_order, result, note,
 				created_at, updated_at
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`,
-			matchID, userID, gameID, seasonID, date, rank,
+			matchID, userID, gameID, seasonID, date, mode, rank,
 			myDeckID, oppDeckID, playOrder, result, note,
 			time.Now(), time.Now(),
 		)

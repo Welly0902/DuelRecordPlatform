@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 
@@ -35,6 +36,11 @@ func main() {
 		log.Fatal("Failed to ping database:", err)
 	}
 	log.Println("✓ Database connected successfully")
+
+	// Ensure schema is up-to-date for local SQLite files.
+	if err := ensureSchema(db); err != nil {
+		log.Fatal("Failed to ensure schema:", err)
+	}
 
 	// 建立 Fiber app
 	app := fiber.New(fiber.Config{
@@ -85,4 +91,45 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func ensureSchema(db *sql.DB) error {
+	// Add matches.mode if missing (older DBs).
+	cols, err := getTableColumns(db, "matches")
+	if err != nil {
+		return err
+	}
+	if _, ok := cols["mode"]; !ok {
+		if _, err := db.Exec("ALTER TABLE matches ADD COLUMN mode TEXT NOT NULL DEFAULT 'Ranked' CHECK (mode IN ('Ranked','Rating','DC'))"); err != nil {
+			return fmt.Errorf("add matches.mode: %w", err)
+		}
+		if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_matches_mode ON matches(mode)"); err != nil {
+			return fmt.Errorf("create idx_matches_mode: %w", err)
+		}
+		log.Println("✓ Applied runtime migration: matches.mode")
+	}
+	return nil
+}
+
+func getTableColumns(db *sql.DB, table string) (map[string]struct{}, error) {
+	rows, err := db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	cols := map[string]struct{}{}
+	for rows.Next() {
+		var cid int
+		var name string
+		var ctype string
+		var notnull int
+		var dflt sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return nil, err
+		}
+		cols[name] = struct{}{}
+	}
+	return cols, rows.Err()
 }

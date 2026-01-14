@@ -9,6 +9,7 @@ type Match struct {
 	GameID     string    `json:"gameId"`
 	SeasonID   string    `json:"seasonId"`
 	Date       string    `json:"date"`        // ISO format: YYYY-MM-DD
+	Mode       string    `json:"mode"`        // "Ranked" | "Rating" | "DC"
 	Rank       string    `json:"rank"`        // e.g. "金IV", "鑽石I"
 	MyDeckID   string    `json:"myDeckId"`    // 我的牌組 ID
 	OppDeckID  string    `json:"oppDeckId"`   // 對手牌組 ID
@@ -24,6 +25,7 @@ type Match struct {
 type MatchWithDetails struct {
 	ID         string    `json:"id"`
 	Date       string    `json:"date"`
+	Mode       string    `json:"mode"`
 	Rank       string    `json:"rank"`
 	MyDeck     DeckInfo  `json:"myDeck"`      // 我的牌組詳細資訊
 	OppDeck    DeckInfo  `json:"oppDeck"`     // 對手牌組詳細資訊
@@ -47,6 +49,7 @@ type CreateMatchRequest struct {
 	GameKey    string   `json:"gameKey"`    // e.g. "master_duel"
 	SeasonCode string   `json:"seasonCode"` // e.g. "S48"
 	Date       string   `json:"date"`       // ISO format: YYYY-MM-DD
+	Mode       string   `json:"mode"`       // "Ranked" | "Rating" | "DC" (default Ranked)
 	Rank       string   `json:"rank"`       // e.g. "金IV"
 	MyDeck     DeckForm `json:"myDeck"`
 	OppDeck    DeckForm `json:"oppDeck"`
@@ -58,6 +61,7 @@ type CreateMatchRequest struct {
 // UpdateMatchRequest 更新對局的請求結構
 type UpdateMatchRequest struct {
 	Date      *string   `json:"date"`
+	Mode      *string   `json:"mode"`
 	Rank      *string   `json:"rank"`
 	MyDeck    *DeckForm `json:"myDeck"`
 	OppDeck   *DeckForm `json:"oppDeck"`

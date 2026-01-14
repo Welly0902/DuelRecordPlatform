@@ -11,6 +11,7 @@ interface DefaultValues {
   rank?: string
   myDeckMain?: string
   myDeckSub?: string
+  mode?: MatchMode
 }
 
 interface MatchFormProps {
@@ -19,7 +20,10 @@ interface MatchFormProps {
   defaultValues?: DefaultValues
   editMatch?: Match  // 如果有值，代表是編輯模式
   seasonCode?: string
+  mode?: MatchMode
 }
+
+type MatchMode = 'Ranked' | 'Rating' | 'DC'
 
 // 階級選項
 const RANK_TIERS = ['銅', '銀', '金', '白金', '鑽石', '大師'] as const
@@ -39,7 +43,7 @@ function parseRank(rank: string): { tier: string; level: string } {
   return { tier: '金', level: 'V' }
 }
 
-export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatch, seasonCode }: MatchFormProps) {
+export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatch, seasonCode, mode: modeFromParent }: MatchFormProps) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const queryClient = useQueryClient()
@@ -64,6 +68,7 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
   // 決定初始值來源：編輯模式用 editMatch，新增模式用 defaultValues
   const initialData = isEditMode ? {
     date: editMatch.date.split('T')[0],
+    mode: editMatch.mode,
     rank: editMatch.rank,
     myDeckMain: editMatch.myDeck.main,
     myDeckSub: editMatch.myDeck.sub || '無',
@@ -74,6 +79,7 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
     note: editMatch.note || '',
   } : {
     date: defaultValues?.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+    mode: defaultValues?.mode || modeFromParent || 'Ranked',
     rank: defaultValues?.rank || '金 V',
     myDeckMain: defaultValues?.myDeckMain || '',
     myDeckSub: defaultValues?.myDeckSub || '無',
@@ -89,6 +95,7 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
 
   // 表單狀態
   const [date, setDate] = useState(initialData.date)
+  const [mode, setMode] = useState<MatchMode>(initialData.mode)
   const [rankTier, setRankTier] = useState<string>(defaultRank.tier)
   const [rankLevel, setRankLevel] = useState<string>(defaultRank.level)
   const [myDeckMain, setMyDeckMain] = useState(initialData.myDeckMain)
@@ -131,7 +138,8 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
   }, [oppSubSearch, allDecks])
 
   // 組合階級字串（tier 和 level 之間加空格，與資料庫格式一致）
-  const rank = `${rankTier} ${rankLevel}`
+  // 非 Ranked 模式時：UI 不顯示 rank；送出空字串讓 API 端以 DB 需求補佔位值。
+  const rank = mode === 'Ranked' ? `${rankTier} ${rankLevel}` : ''
 
   const seasonCodeForCreate = seasonCode ?? getCurrentSeasonCode()
 
@@ -148,6 +156,7 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
       gameKey: 'master_duel',
       seasonCode: seasonCodeForCreate,
       date,
+      mode,
       rank,
       myDeck: { main: myDeckMain || myDeckSearch, sub: getSubValue(myDeckSub, mySubSearch) },
       oppDeck: { main: oppDeckMain || oppDeckSearch, sub: getSubValue(oppDeckSub, oppSubSearch) },
@@ -165,6 +174,7 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
   const updateMutation = useMutation({
     mutationFn: () => matchesService.updateMatch(editMatch!.id, {
       date,
+      mode,
       rank,
       myDeck: { main: myDeckMain || myDeckSearch, sub: getSubValue(myDeckSub, mySubSearch) },
       oppDeck: { main: oppDeckMain || oppDeckSearch, sub: getSubValue(oppDeckSub, oppSubSearch) },
@@ -220,6 +230,22 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
       </div>
 
       <div className="space-y-5">
+        {/* 模式 */}
+        <div>
+          <label className={labelClass}>模式</label>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as MatchMode)}
+            className={inputClass}
+          >
+            <option value="Ranked">Ranked</option>
+            <option value="Rating">Rating</option>
+            <option value="DC">DC</option>
+          </select>
+          <div className={`mt-1 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            {mode === 'Ranked' ? '一般天梯階級（銅～大師）' : '活動賽事（不使用階級）'}
+          </div>
+        </div>
         {/* 日期 */}
         <div>
           <label className={labelClass}>日期</label>
@@ -234,47 +260,53 @@ export default function MatchForm({ onCancel, onSuccess, defaultValues, editMatc
         {/* 階級選擇器 */}
         <div>
           <label className={labelClass}>階級</label>
-          <div className={`p-3 rounded-lg border ${isDark ? 'bg-[#1e1e26] border-white/10' : 'bg-gray-50 border-gray-200'}`}>
-            {/* Level 標題列 */}
-            <div className="grid grid-cols-6 gap-1 mb-2">
-              <div></div>
-              {RANK_LEVELS.map(level => (
-                <div key={level} className={`text-center text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {level}
+          {mode !== 'Ranked' ? (
+            <div className={`px-3 py-2 rounded-lg border ${isDark ? 'bg-[#1e1e26] border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+              此模式不使用階級（列表將以 DC/Rating 顯示）
+            </div>
+          ) : (
+            <div className={`p-3 rounded-lg border ${isDark ? 'bg-[#1e1e26] border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+              {/* Level 標題列 */}
+              <div className="grid grid-cols-6 gap-1 mb-2">
+                <div></div>
+                {RANK_LEVELS.map(level => (
+                  <div key={level} className={`text-center text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {level}
+                  </div>
+                ))}
+              </div>
+              {/* Tier 行 */}
+              {RANK_TIERS.map(tier => (
+                <div key={tier} className="grid grid-cols-6 gap-1 mb-1">
+                  <div className={`text-xs font-medium flex items-center ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {tier}
+                  </div>
+                  {RANK_LEVELS.map(level => {
+                    const isSelected = rankTier === tier && rankLevel === level
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => { setRankTier(tier); setRankLevel(level) }}
+                        className={`h-8 rounded transition-all text-xs font-medium ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white'
+                            : isDark
+                              ? 'bg-white/5 hover:bg-white/10 text-gray-400'
+                              : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                        }`}
+                      >
+                        {isSelected && '✓'}
+                      </button>
+                    )
+                  })}
                 </div>
               ))}
-            </div>
-            {/* Tier 行 */}
-            {RANK_TIERS.map(tier => (
-              <div key={tier} className="grid grid-cols-6 gap-1 mb-1">
-                <div className={`text-xs font-medium flex items-center ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {tier}
-                </div>
-                {RANK_LEVELS.map(level => {
-                  const isSelected = rankTier === tier && rankLevel === level
-                  return (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => { setRankTier(tier); setRankLevel(level) }}
-                      className={`h-8 rounded transition-all text-xs font-medium ${
-                        isSelected
-                          ? 'bg-indigo-600 text-white'
-                          : isDark
-                            ? 'bg-white/5 hover:bg-white/10 text-gray-400'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
-                      }`}
-                    >
-                      {isSelected && '✓'}
-                    </button>
-                  )
-                })}
+              <div className={`mt-2 text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                已選擇：<span className="font-bold text-indigo-400">{rank}</span>
               </div>
-            ))}
-            <div className={`mt-2 text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              已選擇：<span className="font-bold text-indigo-400">{rank}</span>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 我方牌組 */}

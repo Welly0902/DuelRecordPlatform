@@ -24,6 +24,7 @@ func NewMatchesHandler(db *sql.DB) *MatchesHandler {
 func (h *MatchesHandler) GetMatches(c *fiber.Ctx) error {
 	// 取得查詢參數
 	seasonCode := c.Query("seasonCode")
+	mode := c.Query("mode")
 	myDeckMain := c.Query("myDeckMain")
 	oppDeckMain := c.Query("oppDeckMain")
 	result := c.Query("result")
@@ -36,6 +37,7 @@ func (h *MatchesHandler) GetMatches(c *fiber.Ctx) error {
 		SELECT 
 			m.id,
 			m.date,
+			m.mode,
 			m.rank,
 			m.play_order,
 			m.result,
@@ -63,6 +65,12 @@ func (h *MatchesHandler) GetMatches(c *fiber.Ctx) error {
 	if seasonCode != "" {
 		query += fmt.Sprintf(" AND s.code = $%d", argPos)
 		args = append(args, seasonCode)
+		argPos++
+	}
+
+	if mode != "" {
+		query += fmt.Sprintf(" AND m.mode = $%d", argPos)
+		args = append(args, mode)
 		argPos++
 	}
 
@@ -121,6 +129,7 @@ func (h *MatchesHandler) GetMatches(c *fiber.Ctx) error {
 		err := rows.Scan(
 			&m.ID,
 			&m.Date,
+			&m.Mode,
 			&m.Rank,
 			&m.PlayOrder,
 			&m.Result,
@@ -171,6 +180,13 @@ func (h *MatchesHandler) CreateMatch(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "缺少必要欄位"})
 	}
 
+	if req.Mode == "" {
+		req.Mode = "Ranked"
+	}
+	if req.Mode != "Ranked" && req.Rank == "" {
+		req.Rank = "—"
+	}
+
 	// 取得 game_id
 	var gameID string
 	err := h.db.QueryRow("SELECT id FROM games WHERE key = ?", req.GameKey).Scan(&gameID)
@@ -210,12 +226,12 @@ func (h *MatchesHandler) CreateMatch(c *fiber.Ctx) error {
 	// 插入對局記錄
 	_, err = h.db.Exec(`
 		INSERT INTO matches (
-			id, user_id, game_id, season_id, date, rank,
+			id, user_id, game_id, season_id, date, mode, rank,
 			my_deck_id, opp_deck_id, play_order, result, note,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
-		matchID, userID, gameID, seasonID, req.Date, req.Rank,
+		matchID, userID, gameID, seasonID, req.Date, req.Mode, req.Rank,
 		myDeckID, oppDeckID, req.PlayOrder, req.Result, req.Note,
 		time.Now(), time.Now(),
 	)
@@ -255,6 +271,15 @@ func (h *MatchesHandler) UpdateMatch(c *fiber.Ctx) error {
 	if req.Date != nil {
 		updates = append(updates, "date = ?")
 		args = append(args, *req.Date)
+	}
+	if req.Mode != nil {
+		updates = append(updates, "mode = ?")
+		args = append(args, *req.Mode)
+		// If switching away from Ranked and no explicit rank provided, set rank to '—' to satisfy NOT NULL.
+		if *req.Mode != "Ranked" && req.Rank == nil {
+			updates = append(updates, "rank = ?")
+			args = append(args, "—")
+		}
 	}
 	if req.Rank != nil {
 		updates = append(updates, "rank = ?")

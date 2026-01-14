@@ -10,6 +10,7 @@ interface GetMatchesParams {
   playOrder?: '先攻' | '後攻'
   dateFrom?: string
   dateTo?: string
+  mode?: 'Ranked' | 'Rating' | 'DC'
 }
 
 // Matches API Service

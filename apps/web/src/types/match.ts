@@ -9,6 +9,7 @@ export interface DeckInfo {
 export interface Match {
   id: string
   date: string
+  mode: 'Ranked' | 'Rating' | 'DC'
   rank: string
   myDeck: DeckInfo
   oppDeck: DeckInfo
@@ -29,6 +30,7 @@ export interface CreateMatchRequest {
   gameKey: string
   seasonCode: string
   date: string
+  mode?: 'Ranked' | 'Rating' | 'DC'
   rank: string
   myDeck: {
     main: string
@@ -45,6 +47,7 @@ export interface CreateMatchRequest {
 
 export interface UpdateMatchRequest {
   date?: string
+  mode?: 'Ranked' | 'Rating' | 'DC'
   rank?: string
   myDeck?: {
     main: string

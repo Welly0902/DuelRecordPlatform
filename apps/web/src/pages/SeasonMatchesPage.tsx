@@ -49,10 +49,18 @@ function getRankColor(rank: string, isDark: boolean): string {
     : 'bg-gray-100 text-gray-600 border border-gray-300'
 }
 
+function getModeTagColor(mode: MatchMode, isDark: boolean): string {
+  if (mode === 'DC') return isDark ? 'bg-fuchsia-500/20 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-300'
+  if (mode === 'Rating') return isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+  return isDark ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-600 border border-gray-200'
+}
+
+type MatchMode = 'Ranked' | 'Rating' | 'DC'
+
 export default function SeasonMatchesPage() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
-  const [viewMode, setViewMode] = useState<ViewMode>('records')
+  const [viewMode, setViewMode] = useState<ViewMode>('both')
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingMatch, setEditingMatch] = useState<Match | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -61,6 +69,9 @@ export default function SeasonMatchesPage() {
   // 取得當前賽季資訊
   const currentSeason = getCurrentSeasonCode() // e.g. S49
   const [selectedSeason, setSelectedSeason] = useState(currentSeason)
+
+  // NEW: 模式（Ranked / Rating / DC）
+  const [selectedMode, setSelectedMode] = useState<MatchMode>('Ranked')
 
   const seasonOptions = useMemo(() => {
     const codes = getRecentSeasonCodes(12, currentSeason)
@@ -77,6 +88,17 @@ export default function SeasonMatchesPage() {
 
   const selectedSeasonInfo = useMemo(() => getSeasonInfo(selectedSeason), [selectedSeason])
 
+  // NEW: DC 只在 3/6/9/12 月可用
+  const dcEnabled = useMemo(() => {
+    const m = selectedSeasonInfo?.month
+    return typeof m === 'number' ? m % 3 === 0 : false
+  }, [selectedSeasonInfo])
+
+  // 若切到非 DC 月份，避免卡在 DC
+  useEffect(() => {
+    if (!dcEnabled && selectedMode === 'DC') setSelectedMode('Ranked')
+  }, [dcEnabled, selectedMode])
+
   type StatsFilters = {
     myDeckMain?: string
     oppDeckMain?: string
@@ -89,12 +111,12 @@ export default function SeasonMatchesPage() {
 
   useEffect(() => {
     setStatsFilters({})
-  }, [selectedSeason])
+  }, [selectedSeason, selectedMode])
 
-  // 只查詢當季資料（使用 seasonCode 篩選）
+  // 只查詢當季資料（使用 seasonCode + mode 篩選）
   const { data, isLoading, error } = useQuery({
-    queryKey: ['matches', 'season', selectedSeason],
-    queryFn: () => matchesService.getMatches({ seasonCode: selectedSeason }),
+    queryKey: ['matches', 'season', selectedSeason, 'mode', selectedMode],
+    queryFn: () => matchesService.getMatches({ seasonCode: selectedSeason, mode: selectedMode }),
   })
 
   // 取得牌組模板資料
@@ -203,6 +225,7 @@ export default function SeasonMatchesPage() {
           onSuccess={() => setShowAddForm(false)}
           defaultValues={defaultValues}
           seasonCode={selectedSeason}
+          mode={selectedMode}
         />
       </div>
     )
@@ -743,9 +766,18 @@ export default function SeasonMatchesPage() {
                       {new Date(match.date).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })}
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getRankColor(match.rank, isDark)}`}>
-                        {match.rank}
-                      </span>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {match.mode !== 'Ranked' && (
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded whitespace-nowrap ${getModeTagColor(match.mode, isDark)}`}>
+                            {match.mode}
+                          </span>
+                        )}
+                        {match.mode === 'Ranked' && (
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getRankColor(match.rank, isDark)}`}>
+                            {match.rank}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1 flex-wrap">
@@ -854,6 +886,7 @@ export default function SeasonMatchesPage() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">當季記錄</h1>
+
           <select
             value={selectedSeason}
             onChange={(e) => setSelectedSeason(e.target.value)}
@@ -869,6 +902,24 @@ export default function SeasonMatchesPage() {
               </option>
             ))}
           </select>
+
+          {/* NEW: 模式選擇 */}
+          <select
+            value={selectedMode}
+            onChange={(e) => setSelectedMode(e.target.value as MatchMode)}
+            className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors focus:outline-none focus:border-indigo-500 ${
+              isDark
+                ? 'bg-[#1e1e26] border-white/10 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+            }`}
+          >
+            <option value="Ranked">Ranked</option>
+            <option value="Rating">Rating</option>
+            <option value="DC" disabled={!dcEnabled}>
+              DC{!dcEnabled ? '（僅 3/6/9/12 月）' : ''}
+            </option>
+          </select>
+
           {selectedSeasonInfo && (
             <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               {selectedSeasonInfo.start} ~ {selectedSeasonInfo.end}

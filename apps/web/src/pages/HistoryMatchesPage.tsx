@@ -6,6 +6,7 @@ import { decksService, THEME_COLORS, type DeckTheme } from '../services/decksSer
 import { useTheme } from '../contexts/ThemeContext'
 import MatchForm from '../components/MatchForm'
 import type { Match } from '../types/match'
+import { buildSeasonStats } from '../utils/stats'
 
 // 視圖模式
 type ViewMode = 'both' | 'stats' | 'records'
@@ -111,9 +112,18 @@ function VirtualizedTable({
                   </div>
                   {/* 階級 */}
                   <div className="px-3 w-[75px]">
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getRankColor(match.rank, isDark)}`}>
-                      {match.rank}
-                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {match.mode !== 'Ranked' && (
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded whitespace-nowrap ${getModeTagColor(match.mode as MatchMode, isDark)}`}>
+                          {match.mode}
+                        </span>
+                      )}
+                      {match.mode === 'Ranked' && (
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getRankColor(match.rank, isDark)}`}>
+                          {match.rank}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {/* 我方 */}
                   <div className="px-3 flex-1 min-w-0">
@@ -245,13 +255,25 @@ function getRankColor(rank: string, isDark: boolean): string {
     : 'bg-gray-100 text-gray-600 border border-gray-300'
 }
 
+type MatchMode = 'Ranked' | 'Rating' | 'DC'
+
+function getModeTagColor(mode: MatchMode, isDark: boolean): string {
+  if (mode === 'DC') return isDark ? 'bg-fuchsia-500/20 text-fuchsia-300' : 'bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-300'
+  if (mode === 'Rating') return isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+  return isDark ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-600 border border-gray-200'
+}
+
 export default function HistoryMatchesPage() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
-  const [viewMode, setViewMode] = useState<ViewMode>('records')
+  const [viewMode, setViewMode] = useState<ViewMode>('both')
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingMatch, setEditingMatch] = useState<Match | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [selectedMyDeckMain, setSelectedMyDeckMain] = useState<string | null>(null)
+  const [showWlCounts, setShowWlCounts] = useState(true)
+  const [myDeckSortBy, setMyDeckSortBy] = useState<'games' | 'winRate'>('games')
+  const [matchupSortBy, setMatchupSortBy] = useState<'games' | 'winRate'>('games')
   const queryClient = useQueryClient()
 
   // 查詢所有資料
@@ -292,20 +314,58 @@ export default function HistoryMatchesPage() {
     },
   })
 
-  const wins = data?.matches.filter(m => m.result === 'W').length || 0
-  const losses = data?.matches.filter(m => m.result === 'L').length || 0
-  const total = data?.total || 0
+  const matches = data?.matches ?? []
+  const stats = useMemo(() => buildSeasonStats(matches), [matches])
 
-  // 先後攻統計
-  const firstMatches = data?.matches.filter(m => m.playOrder === '先攻') || []
-  const secondMatches = data?.matches.filter(m => m.playOrder === '後攻') || []
-  const firstCount = firstMatches.length
-  const secondCount = secondMatches.length
-  const firstWins = firstMatches.filter(m => m.result === 'W').length
-  const secondWins = secondMatches.filter(m => m.result === 'W').length
-  const firstRate = total > 0 ? (firstCount / total) * 100 : 0
-  const firstWinRate = firstCount > 0 ? (firstWins / firstCount) * 100 : 0
-  const secondWinRate = secondCount > 0 ? (secondWins / secondCount) * 100 : 0
+  const myDeckRows = useMemo(() => {
+    const rows = stats.myDecks.slice()
+    rows.sort((a, b) => {
+      if (myDeckSortBy === 'winRate') {
+        return (b.winRate - a.winRate) || (b.games - a.games) || a.name.localeCompare(b.name)
+      }
+      return (b.games - a.games) || (b.winRate - a.winRate) || a.name.localeCompare(b.name)
+    })
+    return rows
+  }, [stats.myDecks, myDeckSortBy])
+
+  const wins = stats.wins
+  const losses = stats.losses
+  const total = stats.total
+
+  const firstCount = stats.firstCount
+  const secondCount = stats.secondCount
+  const firstWins = stats.firstWins
+  const secondWins = stats.secondWins
+  const firstRate = stats.firstRate
+  const firstWinRate = stats.firstWinRate
+  const secondWinRate = stats.secondWinRate
+
+  const matchupRows = useMemo(() => {
+    if (!selectedMyDeckMain) return []
+
+    const map = new Map<string, { wins: number; losses: number }>()
+    for (const m of matches) {
+      if (m.myDeck?.main !== selectedMyDeckMain) continue
+      const opp = m.oppDeck?.main || '未知'
+      const entry = map.get(opp) ?? { wins: 0, losses: 0 }
+      if (m.result === 'W') entry.wins += 1
+      else if (m.result === 'L') entry.losses += 1
+      map.set(opp, entry)
+    }
+
+    return Array.from(map.entries())
+      .map(([name, v]) => {
+        const games = v.wins + v.losses
+        const winRate = games > 0 ? (v.wins / games) * 100 : 0
+        return { name, games, wins: v.wins, losses: v.losses, winRate }
+      })
+      .sort((a, b) => {
+        if (matchupSortBy === 'winRate') {
+          return (b.winRate - a.winRate) || (b.games - a.games) || a.name.localeCompare(b.name)
+        }
+        return (b.games - a.games) || (b.winRate - a.winRate) || a.name.localeCompare(b.name)
+      })
+  }, [matches, selectedMyDeckMain, matchupSortBy])
 
   // Container 樣式
   const containerClass = `rounded-2xl p-6 ${
@@ -437,15 +497,210 @@ export default function HistoryMatchesPage() {
         </div>
       </div>
 
-      {/* 圖表區域（暫時留空） */}
-      <div className={`rounded-xl p-8 text-center ${isDark ? 'bg-[#1e1e26]' : 'bg-gray-50 border border-gray-200'}`}>
-        <div className="text-4xl mb-4">📊</div>
-        <p className={`${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-          圖表功能開發中...
-        </p>
-        <p className={`text-sm mt-2 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
-          對手牌組分佈、每日勝率趨勢等
-        </p>
+      {/* 我方常用牌組 + 對局組合勝率 */}
+      <div className="flex flex-col gap-4">
+        {/* 我方常用牌組（點擊列選擇） */}
+        <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-[#1e1e26]' : 'bg-white border border-gray-200'}`}>
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <div className={`text-xs uppercase tracking-wider font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>我方常用牌組</div>
+              <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>點擊列以查看對手對戰勝率</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`inline-flex rounded-lg p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <button
+                  type="button"
+                  onClick={() => setMyDeckSortBy('games')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    myDeckSortBy === 'games'
+                      ? 'bg-indigo-600 text-white'
+                      : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  場數
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMyDeckSortBy('winRate')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    myDeckSortBy === 'winRate'
+                      ? 'bg-indigo-600 text-white'
+                      : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  勝率
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWlCounts(v => !v)}
+                className={`text-sm font-semibold transition-colors ${isDark ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}
+              >
+                {showWlCounts ? '隱藏勝敗' : '顯示勝敗'}
+              </button>
+              {selectedMyDeckMain && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedMyDeckMain(null)}
+                  className={`text-sm font-semibold transition-colors ${isDark ? 'text-indigo-300 hover:text-indigo-200' : 'text-indigo-700 hover:text-indigo-800'}`}
+                >
+                  重置
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto">
+            <table className="w-full">
+              <thead className={isDark ? 'border-b border-white/10' : 'border-b border-gray-200 bg-gray-50'}>
+                <tr>
+                  <th className={`px-4 py-2 text-left text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>牌組</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>場數</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>先手率</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>勝率</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>先攻勝率</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>後攻勝率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myDeckRows.slice(0, 30).map((row, idx) => {
+                  const selected = selectedMyDeckMain === row.name
+                  const pct = (v: number) => `${v.toFixed(1)}%`
+                  return (
+                    <tr
+                      key={row.name}
+                      onClick={() => setSelectedMyDeckMain(v => (v === row.name ? null : row.name))}
+                      className={`cursor-pointer transition-colors ${
+                        isDark
+                          ? `border-b border-white/5 hover:bg-white/5 ${selected ? 'bg-indigo-500/15' : idx % 2 === 1 ? 'bg-white/[0.02]' : ''}`
+                          : `border-b border-gray-100 hover:bg-gray-50 ${selected ? 'bg-indigo-50' : idx % 2 === 1 ? 'bg-gray-50/50' : ''}`
+                      }`}
+                    >
+                      <td className={`px-4 py-2 text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{row.name}</td>
+                      <td className={`px-4 py-2 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{row.games}</td>
+                      <td className={`px-4 py-2 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{pct(row.firstRate)}</td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        <span className={`font-bold ${row.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{pct(row.winRate)}</span>
+                        {showWlCounts && (
+                          <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                            ({row.wins}W-{row.losses}L)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        <span className={`${row.firstWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{pct(row.firstWinRate)}</span>
+                        {showWlCounts && (
+                          <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                            ({row.firstWins}W-{row.firstLosses}L)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        <span className={`${row.secondWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{pct(row.secondWinRate)}</span>
+                        {showWlCounts && (
+                          <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                            ({row.secondWins}W-{row.secondLosses}L)
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={`px-4 py-3 text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            只顯示前 30 名（依場數排序）
+          </div>
+        </div>
+
+        {/* 我方某牌組 vs 各對手牌組勝率 */}
+        <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-[#1e1e26]' : 'bg-white border border-gray-200'}`}>
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <div className={`text-xs uppercase tracking-wider font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {selectedMyDeckMain ? `對戰勝率：${selectedMyDeckMain} vs 對手牌組` : '對戰勝率：請先選擇我方牌組'}
+              </div>
+              <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                依{matchupSortBy === 'winRate' ? '勝率' : '場數'}排序
+              </div>
+            </div>
+            <div className={`inline-flex rounded-lg p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+              <button
+                type="button"
+                onClick={() => setMatchupSortBy('games')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  matchupSortBy === 'games'
+                    ? 'bg-indigo-600 text-white'
+                    : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                場數
+              </button>
+              <button
+                type="button"
+                onClick={() => setMatchupSortBy('winRate')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  matchupSortBy === 'winRate'
+                    ? 'bg-indigo-600 text-white'
+                    : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                勝率
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-80 overflow-y-auto">
+            <table className="w-full">
+              <thead className={isDark ? 'border-b border-white/10' : 'border-b border-gray-200 bg-gray-50'}>
+                <tr>
+                  <th className={`px-4 py-2 text-left text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>對手牌組</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>場數</th>
+                  <th className={`px-4 py-2 text-right text-xs font-semibold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>勝率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!selectedMyDeckMain && (
+                  <tr>
+                    <td colSpan={3} className={`px-4 py-8 text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      從左側「我方常用牌組」點一個牌組
+                    </td>
+                  </tr>
+                )}
+                {selectedMyDeckMain && matchupRows.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className={`px-4 py-8 text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                      沒有找到對戰資料
+                    </td>
+                  </tr>
+                )}
+                {selectedMyDeckMain && matchupRows.map((row, idx) => (
+                  <tr
+                    key={row.name}
+                    className={`transition-colors ${
+                      isDark
+                        ? `border-b border-white/5 ${idx % 2 === 1 ? 'bg-white/[0.02]' : ''}`
+                        : `border-b border-gray-100 ${idx % 2 === 1 ? 'bg-gray-50/50' : ''}`
+                    }`}
+                  >
+                    <td className={`px-4 py-2 text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{row.name}</td>
+                    <td className={`px-4 py-2 text-sm text-right ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{row.games}</td>
+                    <td className="px-4 py-2 text-sm text-right">
+                      <span className={`font-bold ${row.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>{row.winRate.toFixed(1)}%</span>
+                      {showWlCounts && (
+                        <span className={`ml-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          ({row.wins}W-{row.losses}L)
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   )
