@@ -10,37 +10,34 @@ echo === DuelLog Launcher ===
 echo Root: %ROOT%
 echo.
 
-REM Basic checks (avoid IF (...) blocks to reduce parsing issues)
 where go >nul 2>nul
-if %errorlevel% neq 0 goto :missing_go
+if errorlevel 1 goto :missing_go
 
 where node >nul 2>nul
-if %errorlevel% neq 0 goto :missing_node
+if errorlevel 1 goto :missing_node
 
 where npm >nul 2>nul
-if %errorlevel% neq 0 goto :missing_npm
+if errorlevel 1 goto :missing_npm
 
-REM Optional warning: gcc (CGO for go-sqlite3)
 where gcc >nul 2>nul
-if %errorlevel% neq 0 echo [WARN] gcc not found. Backend may require GCC (TDM-GCC/MinGW) on Windows.
+if errorlevel 1 echo [WARN] gcc not found. Backend may require GCC (TDM-GCC/MinGW) on Windows.
 
-REM Verify project folders exist
 if not exist "%ROOT%apps\api\go.mod" goto :missing_api
 if not exist "%ROOT%apps\web\package.json" goto :missing_web
 
 echo Starting backend...
-start "DuelLog API" cmd /k "call "%ROOT%start-backend.bat""
+start "DuelLog API" cmd /k ""%ROOT%start-backend.bat""
 
 REM Give backend a moment to start
 timeout /t 2 /nobreak >nul
 
 echo Starting frontend...
-start "DuelLog Web" cmd /k "call "%ROOT%start-frontend.bat""
+start "DuelLog Web" cmd /k ""%ROOT%start-frontend.bat""
 
 echo.
 echo Opening browser (may take a few seconds)...
 timeout /t 2 /nobreak >nul
-start "" http://localhost:5173/history
+start "" "http://localhost:5173/history"
 
 echo.
 echo Two windows were started: DuelLog API and DuelLog Web.
