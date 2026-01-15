@@ -22,7 +22,7 @@ Master Duel 對局記錄平台：用更快的方式記錄、回顧與統計你�
   - 我目前使用過的安裝檔是：`tdm64-gcc-10.3.0-2.exe` 如果你電腦沒有gcc可安裝此 [tdm64-gcc](https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm64-2/tdm64-gcc-10.3.0-2.exe)。
 
 上述三者缺一都會造成執行錯誤，請確認安裝完成
-## 快速開始（一般使用者：推薦）
+## - 快速開始（一般使用者：推薦）
 
 一般使用者建議直接下載 zip 或用 GitHub Desktop / git clone 拿到檔案後，直接執行腳本 `start-duellog.bat` 來啟動網站。
 
