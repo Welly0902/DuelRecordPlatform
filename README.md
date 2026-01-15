@@ -115,6 +115,8 @@ npm run dev
 2. 歷史對局紀錄
 3. 可選擇的牌組管理(比如之後出K9, 可以在手動新增並選擇牌組類別來決定顏色，這樣就可以在對局紀錄加入K9的牌組對局紀錄)
 
+---
+
 ### 新增對局紀錄
 *新增紀錄*
 <img width="1249" height="635" alt="image" src="https://github.com/user-attachments/assets/dc86eb1f-3b40-4c06-b6b2-e7401fbd974b" />
