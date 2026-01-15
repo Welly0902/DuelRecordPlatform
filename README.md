@@ -15,41 +15,39 @@ Master Duel 對局記錄平台：用更快的方式記錄、回顧與統計你�
 - Go：1.25.5 以上（`go version`）[Golang官方下載](https://go.dev/dl/go1.25.5.windows-amd64.msi)
 - Node.js：22.2.0 以上（`node -v`）[Node.js官方下載](https://nodejs.org/dist/v22.2.0/node-v22.2.0-x64.msi)
 
-Windows 另外注意：
-
-- 只有在「Windows 從原始碼啟動後端（`go run .` / `go build`）」時，才需要安裝 C 編譯器（GCC）。
-  - 原因：後端使用 `github.com/mattn/go-sqlite3`（需要 CGO）。
-  - 如果你是下載我提供的 Release（直接執行 `duellog-api.exe`），一般不需要另外安裝 GCC。
-  - 我目前使用過的安裝檔是：`tdm64-gcc-10.3.0-2.exe`（你可以在這裡補上下載連結）。
+- 腳本或是指令在執行（`go run .`）」時，需要安裝 C 編譯器（GCC）。
+  - 我目前使用過的安裝檔是：`tdm64-gcc-10.3.0-2.exe` 如果你電腦沒有gcc可安裝此 [tdm64-gcc](https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm64-2/tdm64-gcc-10.3.0-2.exe)。
 
 ## 快速開始（一般使用者：推薦）
 
-如果你不熟程式，建議直接下載 Release 版本 [下載連結](https://github.com/Welly0902/DuelRecordPlatform/archive/refs/heads/main.zip)。
+如果你不熟程式，建議直接下載 zip 或用 GitHub Desktop / git clone 拿到檔案後，直接執行我準備好的腳本 `start-duellog.bat`。
+![image](https://hackmd.io/_uploads/rkxHZyLB-e.png)
+![image](https://hackmd.io/_uploads/S1jhW18Hbg.png)
 
 ### 1) 下載並解壓縮或是從github上clone
 
 - 下載 Release 壓縮檔後解壓縮
 - 也可使用 `git clone https://github.com/Welly0902/DuelRecordPlatform.git` 獲得檔案
-- 進到解壓縮後的資料夾（在路徑`DuelRecordPlatform-main\apps\api` 裡面會有 `duellog-api.exe`）
+- 進到解壓縮後的資料夾（專案根目錄會看到 `start-duellog.bat`）
 
-### 2) 啟動後端（雙擊或用 CMD 執行）
+### 2) 一鍵啟動（推薦）
 
-你可以直接「雙擊」`duellog-api.exe` (最簡便)
-如果你電腦有 GCC(C compiler的話) 也可以:
-```
-# 到放檔案的路徑
-$ cd DuelRecordPlatform-main\apps\api
-# 啟動 golang 的後端程式
-$ go run .
-```
+在專案根目錄「雙擊」執行：`start-duellog.bat`
+
+它會自動：
+
+- 啟動後端（Go API）
+- 啟動前端（Web）
+- 第一次啟動若前端尚未安裝依賴，會先自動執行 `npm install`
+- 自動開啟瀏覽器到 `/history`
 
 ### 3) 打開網頁開始使用
 
-- `http://localhost:8080/history`
+- `http://localhost:5173/history`
 
 補充：
 
-- 程式會在同一個資料夾建立本機資料庫檔案：`duellog.db`
+- 後端會在 `apps/api` 建立本機資料庫檔案：`duellog.db`
 - 若你想重置資料，可關掉程式後刪除 `duellog.db` 再重新啟動
 
 ## 快速開始（開發者：從原始碼）
@@ -58,7 +56,7 @@ $ go run .
 
 ### 1) 啟動後端（Go API）
 
-```powershell
+```powershell/cmd
 cd DuelRecordPlatform-main\apps\api
 go run .
 ```
@@ -71,7 +69,7 @@ go run .
 
 ### 2) 啟動前端（Web）
 
-```powershell
+```powershell/cmd
 cd DuelRecordPlatform-main\apps\web
 npm install
 npm run dev
@@ -88,21 +86,8 @@ npm run dev
 ## 第一次啟動會自動做什麼
 
 - 若資料庫尚未建立，後端會自動套用 migrations 建表。
-- 預設會自動套用 `apps/api/seed.sql`（示範資料 + 可共享的 `deck_templates`）。
+- 預設會自動套用 `apps/api/seed.sql`（可共享的 `deck_templates` + 最小必要資料）。
   - 如果你不想自動 seed，可在啟動前設定環境變數：`AUTO_SEED=false`
-
-## 共享牌組模板（deck_templates）（可選）
-
-本專案會把「牌組管理」用的 `deck_templates` 視為可共享的字典資料；但你的 `matches` 對局記錄屬於個人資料，不建議上傳。
-
-如果你想把你目前本機 DB 裡整理好的 `deck_templates` 提供給所有新使用者，可以用匯出工具產生 SQL：
-
-```powershell
-cd DuelRecordPlatform-main\apps\api
-go run ./cmd/export-deck-templates -db ./duellog.db -out ./_deck_templates_export.sql
-```
-
-接著把輸出的 `INSERT OR IGNORE INTO deck_templates ...` 區塊更新到 `apps/api/seed.sql`。
 
 ## 常見問題
 
