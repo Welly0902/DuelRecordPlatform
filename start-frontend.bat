@@ -18,7 +18,11 @@ cd /d "%~dp0apps\web" || (
 
 if not exist node_modules (
   echo Installing dependencies...
-  npm install
+  if exist package-lock.json (
+    npm ci
+  ) else (
+    npm install
+  )
 )
 
 npm run dev

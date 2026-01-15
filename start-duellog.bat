@@ -29,11 +29,13 @@ if not exist "%ROOT%apps\api\go.mod" goto :missing_api
 if not exist "%ROOT%apps\web\package.json" goto :missing_web
 
 echo Starting backend...
-start "DuelLog API" /D "%ROOT%apps\api" cmd /k "go run ."
+start "DuelLog API" cmd /k "call "%ROOT%start-backend.bat""
+
+REM Give backend a moment to start
+timeout /t 2 /nobreak >nul
 
 echo Starting frontend...
-REM Install deps only if node_modules missing; use npm ci when package-lock exists.
-start "DuelLog Web" /D "%ROOT%apps\web" cmd /k "if not exist node_modules (if exist package-lock.json (npm ci) else (npm install)) & npm run dev"
+start "DuelLog Web" cmd /k "call "%ROOT%start-frontend.bat""
 
 echo.
 echo Opening browser (may take a few seconds)...
