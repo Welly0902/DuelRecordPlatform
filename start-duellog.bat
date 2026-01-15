@@ -1,60 +1,73 @@
 @echo off
 setlocal
 
-REM Use UTF-8 output (messages may still depend on console font)
-chcp 65001 >nul
+REM DuelLog one-click launcher (Windows)
+REM Note: Keep this file ASCII-only to avoid cmd encoding issues.
 
-pushd "%~dp0"
+set "ROOT=%~dp0"
+
 echo === DuelLog Launcher ===
-echo Repo root: %CD%
+echo Root: %ROOT%
 echo.
 
-REM Basic checks
+REM Basic checks (avoid IF (...) blocks to reduce parsing issues)
 where go >nul 2>nul
-if errorlevel 1 (
-  echo [ERROR] 找不到 Go。請先安裝 Go（建議 Go 1.25.5+）。
-  pause
-  exit /b 1
-)
+if %errorlevel% neq 0 goto :missing_go
 
 where node >nul 2>nul
-if errorlevel 1 (
-  echo [ERROR] 找不到 Node.js。請先安裝 Node.js（建議 Node 22.2.0+）。
-  pause
-  exit /b 1
-)
+if %errorlevel% neq 0 goto :missing_node
 
 where npm >nul 2>nul
-if errorlevel 1 (
-  echo [ERROR] 找不到 npm。請確認 Node.js 安裝完整（含 npm）。
-  pause
-  exit /b 1
-)
+if %errorlevel% neq 0 goto :missing_npm
 
-REM Go sqlite3 uses CGO on Windows; warn if gcc not found
+REM Optional warning: gcc (CGO for go-sqlite3)
 where gcc >nul 2>nul
-if errorlevel 1 (
-  echo [WARN] 找不到 GCC（C compiler）。
-  echo 後端使用 go-sqlite3（CGO），在 Windows 從原始碼啟動通常需要 GCC。
-  echo 若稍後後端視窗出現 gcc/cgo 相關錯誤，請先安裝 TDM-GCC 或 MinGW。
-  echo.
-)
+if %errorlevel% neq 0 echo [WARN] gcc not found. Backend may require GCC (TDM-GCC/MinGW) on Windows.
+
+REM Verify project folders exist
+if not exist "%ROOT%apps\api\go.mod" goto :missing_api
+if not exist "%ROOT%apps\web\package.json" goto :missing_web
 
 echo Starting backend...
-start "DuelLog API" cmd /k "cd /d ""%~dp0apps\api"" && echo [API] Starting... && go run ."
+start "DuelLog API" /D "%ROOT%apps\api" cmd /k "go run ."
 
 echo Starting frontend...
-start "DuelLog Web" cmd /k "cd /d ""%~dp0apps\web"" && if not exist node_modules (echo [WEB] Installing dependencies... && (if exist package-lock.json (npm ci) else (npm install))) && echo [WEB] Starting... && npm run dev"
-
-echo Opening browser...
-echo 若頁面尚未就緒，請稍等 5~10 秒後重新整理。
-timeout /t 2 /nobreak >nul
-start "" "http://localhost:5173/history"
+REM Install deps only if node_modules missing; use npm ci when package-lock exists.
+start "DuelLog Web" /D "%ROOT%apps\web" cmd /k "if not exist node_modules (if exist package-lock.json (npm ci) else (npm install)) & npm run dev"
 
 echo.
-echo 已啟動兩個視窗：DuelLog API 與 DuelLog Web。
-echo 若要停止服務，直接關閉那兩個視窗即可。
+echo Opening browser (may take a few seconds)...
+timeout /t 2 /nobreak >nul
+start "" http://localhost:5173/history
+
+echo.
+echo Two windows were started: DuelLog API and DuelLog Web.
+echo Close those windows to stop the servers.
 echo.
 pause
-popd
-endlocal
+exit /b 0
+
+:missing_go
+echo [ERROR] Go not found. Please install Go (1.25.5+).
+pause
+exit /b 1
+
+:missing_node
+echo [ERROR] Node.js not found. Please install Node.js (22.2.0+).
+pause
+exit /b 1
+
+:missing_npm
+echo [ERROR] npm not found. Please reinstall Node.js (with npm).
+pause
+exit /b 1
+
+:missing_api
+echo [ERROR] Cannot find apps\api. Please run this .bat from the repo root folder.
+pause
+exit /b 1
+
+:missing_web
+echo [ERROR] Cannot find apps\web. Please run this .bat from the repo root folder.
+pause
+exit /b 1
