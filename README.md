@@ -2,7 +2,7 @@
 
 Master Duel 對局記錄平台：用更快的方式記錄、回顧與統計你的對局。
 
-## 功能簡介
+## - 功能簡介
 
 - 記錄對局：先手/後手、勝敗、對手牌組、我方牌組等
 - 賽季與歷史頁面統計（/season、/history）
@@ -11,7 +11,7 @@ Master Duel 對局記錄平台：用更快的方式記錄、回顧與統計你�
 
 
 
-## 環境需求
+## - 環境需求
 
 以下為本專案目前使用的版本：
 
@@ -56,7 +56,7 @@ Master Duel 對局記錄平台：用更快的方式記錄、回顧與統計你�
 - 後端會在 `apps/api` 建立本機資料庫檔案：`duellog.db`
 - 若你想重置資料，可關掉程式後刪除 `duellog.db` 再重新啟動
 
-## 快速開始（開發者：從原始碼）
+## - 快速開始（開發者：從原始碼）
 
 以下假設你下載解壓後的資料夾名稱是 `DuelRecordPlatform-main`。
 
@@ -89,13 +89,13 @@ npm run dev
 
 - `http://localhost:5173/history`
 
-## 第一次啟動會自動做什麼
+## - 第一次啟動會自動做什麼
 
 - 若資料庫尚未建立，後端會自動套用 migrations 建表。
 - 預設會自動套用 `apps/api/seed.sql`（可共享的 `deck_templates` + 最小必要資料）。
   - 如果你不想自動 seed，可在啟動前設定環境變數：`AUTO_SEED=false`
 
-## 常見問題
+## - 常見問題
 
 ### Windows：go-sqlite3 編譯失敗
 
@@ -109,7 +109,7 @@ npm run dev
 - 確認後端正在跑：`http://localhost:8080/health`
 - 確認前端 API 設定（例如 `VITE_API_BASE_URL`）
 
-## 網頁使用方式:
+## - 網頁使用方式:
 左方 sidebar 分成三個功能:
 1. 當季對局紀錄
 2. 歷史對局紀錄
